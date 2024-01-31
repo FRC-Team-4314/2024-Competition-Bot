@@ -32,10 +32,10 @@ public class Robot extends TimedRobot {
 
   private final MecanumDrive mecanumDrive = new MecanumDrive(upperLeftDrive, lowerLeftDrive, upperRightDrive, lowerRightDrive);
   
-  private final Joystick Lcontroller = new Joystick(0);
-  private final Joystick Rcontroller = new Joystick(1);
-
-  private double currSpeedL = 0, currSpeedR = 0;
+  private final Joystick xyController = new Joystick(0);
+  private final Joystick rotationControler = new Joystick(1);
+  
+  private double currSpeedX = 0, currSpeedY = 0, currRotation = 0;
   private double leftStickY = 0, rightStickY = 0;
 
 
@@ -107,7 +107,7 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-    
+      mecanumDrive.driveCartesian(speedControl(currSpeedX,-xyController.getY()), speedControl(currSpeedY,-xyController.getX()), speedControl(currRotation, rotationControler.getX()));
   }
 
   @Override
