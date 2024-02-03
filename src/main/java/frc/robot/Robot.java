@@ -8,12 +8,13 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+//import edu.wpi.first.wpilibj.XboxController;
+//import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.drive.MecanumDrive;
-import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+//import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 
 import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
 
@@ -36,7 +37,7 @@ public class Robot extends TimedRobot {
   private final Joystick rotationControler = new Joystick(1);
   
   private double currSpeedX = 0, currSpeedY = 0, currRotation = 0;
-  private double leftStickY = 0, rightStickY = 0;
+  //private double leftStickY = 0, rightStickY = 0;
 
 
   private final Timer timer = new Timer();
@@ -107,7 +108,15 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
-      mecanumDrive.driveCartesian(speedControl(currSpeedX,-xyController.getY()), speedControl(currSpeedY,-xyController.getX()), speedControl(currRotation, rotationControler.getX()));
+      if(RobotState.isEnabled()){
+        currSpeedX = newSpeedControl(currSpeedX,-xyController.getY());
+        currSpeedY = newSpeedControl(currSpeedY,-xyController.getX());
+
+        mecanumDrive.driveCartesian(currSpeedX, currSpeedY, speedControl(currRotation, rotationControler.getX()));
+      }
+      else{
+       mecanumDrive.driveCartesian(0.0,0.0,0.0);
+      }
   }
 
   @Override
@@ -155,5 +164,14 @@ public class Robot extends TimedRobot {
 
       return newSpeed;
       
+    }
+
+    //This will increment the current speed given by a very small part of a square root curve
+    private double newSpeedControl(double currentSpeed, double targetSpeed){
+      if(targetSpeed-currentSpeed<0)
+      {
+        return currentSpeed -= (.01*Math.sqrt(Math.abs(targetSpeed-currentSpeed)));
+      }
+      return currentSpeed += (.01*Math.sqrt(targetSpeed-currentSpeed));
     }
 }
