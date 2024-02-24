@@ -44,10 +44,10 @@ public class Robot extends TimedRobot {
 	// private final UsbCamera frontcamera = new UsbCamera("Front camera", 0);
 	Thread visionThread;
 	
-	private final PWMSparkMax upperLeftDrive = new PWMSparkMax(1);
-	private final PWMSparkMax upperRightDrive = new PWMSparkMax(3);
-	private final PWMSparkMax lowerLeftDrive = new PWMSparkMax(0);
-	private final PWMSparkMax lowerRightDrive = new PWMSparkMax(2);
+	private final PWMSparkMax upperLeftDrive = new PWMSparkMax(0);
+	private final PWMSparkMax upperRightDrive = new PWMSparkMax(1);
+	private final PWMSparkMax lowerLeftDrive = new PWMSparkMax(2);
+	private final PWMSparkMax lowerRightDrive = new PWMSparkMax(3);
 	
 	private final VictorSPX launcherMotor = new VictorSPX(0);
 	private final VictorSPX launcherMotor2 = new VictorSPX(1);
@@ -67,6 +67,7 @@ public class Robot extends TimedRobot {
 	private RobotContainer robotContainer;
 
 	private boolean primed = false;
+	//private boolean launching = false;
 	/**
 	 * This function is run when the robot is first started up and should be used
 	 * for any
@@ -76,16 +77,19 @@ public class Robot extends TimedRobot {
 	public void robotInit() {
 		launcherMotor.set(VictorSPXControlMode.PercentOutput,0);
 		launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
-
+		upperRightDrive.setInverted(true);
+		lowerRightDrive.setInverted(true);
+		lowerLeftDrive.setInverted(false);
+		upperLeftDrive.setInverted(false);
+		
 		// Instantiate our RobotContainer. This will perform all our button bindings,
 		// and put our
 		// autonomous chooser on the dashboard.
 
 		// UsbCamera front_cam = new UsbCamera("CaM 1", 0);
-
+		
 		robotContainer = new RobotContainer();
-		upperLeftDrive.setInverted(true);
-		upperRightDrive.setInverted(true);
+
 		
 		visionThread = new Thread(
 				() -> {
@@ -181,6 +185,7 @@ public class Robot extends TimedRobot {
 		currSpeedX = 0;
 		currSpeedY = 0;
 
+
 		// This makes sure that the autonomous stops running when
 		// teleop starts running. If you want the autonomous to
 		// continue until interrupted by another command, remove
@@ -194,6 +199,15 @@ public class Robot extends TimedRobot {
 	@Override
 	public void teleopPeriodic() {
 		if (RobotState.isEnabled()) {
+
+		// if(controller.getYButton())
+		// {
+		// 	return;
+		// }
+		// else{
+		// 	lowerLeftDrive.set(0);
+		// }
+		
 			stickX = Math.abs(controller.getLeftX()) < .1 ? 0 : controller.getLeftX();
 			stickY = Math.abs(controller.getLeftY()) < .1 ? 0 : controller.getLeftY();
 			rStickX = Math.abs(controller.getRightX()) < .1 ? 0 : controller.getRightX();
@@ -209,8 +223,11 @@ public class Robot extends TimedRobot {
 			if (controller.getRightTriggerAxis()>.5) {
 				launcherMotor.set(VictorSPXControlMode.PercentOutput,1.0);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput,1.0);
+				//launching = true;
+				primed= false;
 			}
 			else if(primed){
+				//launching = false;
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1);
 			}
 			else if(controller.getAButton())
@@ -219,9 +236,12 @@ public class Robot extends TimedRobot {
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput,-.5);	
 			}		
 			else {
+				//launching = false;
+				primed = false;
 				launcherMotor.set(VictorSPXControlMode.PercentOutput,0);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
 			}
+			
 
 		} else {
 			// Defaults
@@ -232,7 +252,7 @@ public class Robot extends TimedRobot {
 			launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
 		}
 
-		mecanumDrive.driveCartesian(-currSpeedX, currSpeedY, -currRotation);
+		mecanumDrive.driveCartesian(currSpeedX, currSpeedY, currRotation);
 	}
 
 	@Override
