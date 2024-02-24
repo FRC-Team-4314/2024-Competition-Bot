@@ -252,7 +252,7 @@ public class Robot extends TimedRobot {
 			launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
 		}
 
-		mecanumDrive.driveCartesian(currSpeedX, currSpeedY, currRotation);
+		mecanumDrive.driveCartesian(-currSpeedX, currSpeedY, currRotation);
 	}
 
 	@Override
