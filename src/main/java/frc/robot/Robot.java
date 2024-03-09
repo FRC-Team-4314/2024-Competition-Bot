@@ -39,10 +39,7 @@ import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
  * the package after creating this project, you must also update the build.gradle file in the
  * project.
  */
-public class Robot extends TimedRobot {
-	// private final UsbCamera frontcamera = new UsbCamera("Front camera", 0);
-	Thread visionThread;
-	
+public class Robot extends TimedRobot {	
 	private final PWMSparkMax upperLeftDrive = new PWMSparkMax(0);
 	private final PWMSparkMax upperRightDrive = new PWMSparkMax(1);
 	private final PWMSparkMax lowerLeftDrive = new PWMSparkMax(2);
@@ -50,7 +47,7 @@ public class Robot extends TimedRobot {
 	
 	private final VictorSPX launcherMotor = new VictorSPX(0);
 	private final VictorSPX launcherMotor2 = new VictorSPX(1);
-	//private final VictorSPX pickupMotor = new VictorSPX(5);
+	private final PWMSparkMax robotLiftMotor = new PWMSparkMax(4);
 
 	private final MecanumDrive mecanumDrive = new MecanumDrive(upperLeftDrive, lowerLeftDrive, upperRightDrive,
 			lowerRightDrive);
@@ -67,7 +64,7 @@ public class Robot extends TimedRobot {
 
 	
 	private boolean primed = false;
-	//private boolean launching = false;
+	private double lift = 0.0;
 	/**
 	 * This function is run when the robot is first started up and should be used
 	 * for any
@@ -85,15 +82,17 @@ public class Robot extends TimedRobot {
 		// and put our
 		// autonomous chooser on the dashboard.s
 
-		// UsbCamera front_cam = new UsbCamera("CaM 1", 0);
 		
 		robotContainer = new RobotContainer();
+
 		upperLeftDrive.setSafetyEnabled(false);
 		lowerLeftDrive.setSafetyEnabled(false);
 		upperRightDrive.setSafetyEnabled(false);
 		lowerRightDrive.setSafetyEnabled(false);
-		
-		// CameraServer.startAutomaticCapture();
+
+		CameraServer.startAutomaticCapture();
+		// CvSink frontSink = new CvSink("frontSink");
+		// frontSink.setSource(frontCam);
 	}
 
 	/**
@@ -147,21 +146,23 @@ public class Robot extends TimedRobot {
 	/** This function is called periodically during autonomous. */
 	@Override
 	public void autonomousPeriodic() {
-		// 
 		if (timer.get() >= 0 && timer.get() <= 2){ // Primes for 1 second
 			launcherMotor2.set(ControlMode.PercentOutput, 1);
-			if (timer.get() >= 1){ // Move Back about 64 inches
+			if (timer.get() >= 1){ //Fires
 				launcherMotor.set(ControlMode.PercentOutput, 1);
 			}
 		}
-		else if (timer.get() >= 1.5 && timer.get() <= 2.5){
+		else if (timer.get() >= 1.5 && timer.get() <= 2.5){ // Moves back unkown ft
 			currSpeedY = 0.5;
+		}
+		else if (timer.get() >= 3 && timer.get() <= 4){
+			currRotation = 0.5;
 		}
 		else{
 			currRotation = 0;
 			currSpeedX = 0;
 			currSpeedY = 0;
-			primed = false;
+			launcherMotor2.set(ControlMode.PercentOutput,0);
 		}
 
 		mecanumDrive.driveCartesian(-currSpeedX, currSpeedY, currRotation);
@@ -175,6 +176,7 @@ public class Robot extends TimedRobot {
 		currSpeedY = 0;
 		
 		SmartDashboard.putBoolean("primed", primed);
+		SmartDashboard.putNumber("lift", lift);
 
 		// This makes sure that the autonomous stops running when
 		// teleop starts running. If you want the autonomous to
@@ -218,16 +220,25 @@ public class Robot extends TimedRobot {
 			else if(primed){
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1);
 			}
-			else if(controller.getAButton())
+			else if(controller.getAButton()) // Loading through the front
 			{
 				launcherMotor.set(VictorSPXControlMode.PercentOutput,-.5);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput,-.5);	
+			}
+			else if(controller.getPOV() != -1 && lift >= 0){ // Mechanism to pull robot on chain
+				if (controller.getPOV() == 0){
+					lift += 1;
+					robotLiftMotor.set(.5);
+				}
+				else if (controller.getPOV() == 180){
+					lift -= 1;
+					robotLiftMotor.set(-0.5);;
+				}
 			}
 			else {
 				primed = false;
 				launcherMotor.set(VictorSPXControlMode.PercentOutput,0);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
-				//pickupMotor.set(VictorSPXControlMode.PercentOutput, 0);
 			}
 			
 
@@ -242,8 +253,10 @@ public class Robot extends TimedRobot {
 		}
 
 		mecanumDrive.driveCartesian(-currSpeedX, currSpeedY, currRotation);
-
-
+		// SmartDashboard.updateValues();
+		SmartDashboard.putBoolean("primed", primed);
+		SmartDashboard.putNumber("lift", lift);
+		
 	}
 
 	@Override
