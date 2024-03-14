@@ -20,7 +20,9 @@ import edu.wpi.first.wpilibj.drive.MecanumDrive;
 import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
 // import edu.wpi.first.wpilibj.motorcontrol.PWMVictorSPX;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.smartdashboard.*;
+
+import java.io.Console;
 
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
@@ -33,18 +35,19 @@ import com.ctre.phoenix.motorcontrol.can.*;
 // import com.ctre.phoenix.signals.*;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
+
 /*
  * The VM is configured to automatically run this class, and to call the functions corresponding to
  * each mode, as described in the TimedRobot documentation. If you change the name of this class or
  * the package after creating this project, you must also update the build.gradle file in the
  * project.
  */
-public class Robot extends TimedRobot {	
+public class Robot extends TimedRobot {
 	private final WPI_VictorSPX upperLeftDrive = new WPI_VictorSPX(4);
 	private final WPI_VictorSPX upperRightDrive = new WPI_VictorSPX(3);
 	private final WPI_VictorSPX lowerLeftDrive = new WPI_VictorSPX(5);
 	private final WPI_VictorSPX lowerRightDrive = new WPI_VictorSPX(1);
-	
+
 	private final WPI_VictorSPX launcherMotor = new WPI_VictorSPX(2);
 	private final WPI_VictorSPX launcherMotor2 = new WPI_VictorSPX(0);
 	private final WPI_VictorSPX robotLiftMotor = new WPI_VictorSPX(6);
@@ -56,14 +59,19 @@ public class Robot extends TimedRobot {
 
 	private double currSpeedX = 0, currSpeedY = 0, currRotation = 0;
 	private double stickX = 0, stickY = 0, rStickX = 0;
-	private int autoSet = 0;
+	private int side = 1; // 1 or -1
+	private boolean sidebool;
+	private boolean boolside; // True Blue, False Red
+
+	private SendableChooser<Integer> autoChooser = new SendableChooser();
+
 	private final Timer timer = new Timer();
 	private Command autonomousCommand;
 
 	private RobotContainer robotContainer;
 
-	
 	private boolean primed = false;
+
 	/**
 	 * This function is run when the robot is first started up and should be used
 	 * for any
@@ -71,8 +79,8 @@ public class Robot extends TimedRobot {
 	 */
 	@Override
 	public void robotInit() {
-		launcherMotor.set(VictorSPXControlMode.PercentOutput,0);
-		launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
+		launcherMotor.set(VictorSPXControlMode.PercentOutput, 0);
+		launcherMotor2.set(VictorSPXControlMode.PercentOutput, 0);
 		upperRightDrive.setInverted(true);
 		lowerRightDrive.setInverted(true);
 		lowerLeftDrive.setInverted(false);
@@ -82,10 +90,13 @@ public class Robot extends TimedRobot {
 		// and put our
 		// autonomous chooser on the dashboard.s
 
-		
+		autoChooser.setDefaultOption("subwoofer center", 0);
+		autoChooser.addOption("subwoofer left", 1);
+		autoChooser.addOption("subwoofer right", 2);
+		SmartDashboard.putData("Choose Auto",autoChooser);
 		robotContainer = new RobotContainer();
 
-		CameraServer.startAutomaticCapture();
+		CameraServer.startAutomaticCapture().setResolution(720, 480);
 		// CvSink frontSink = new CvSink("frontSink");
 		// frontSink.setSource(frontCam);
 	}
@@ -109,7 +120,9 @@ public class Robot extends TimedRobot {
 		// and running subsystem periodic() methods. This must be called from the
 		// robot's periodic
 		// block in order for anything in the Command-based framework to work.
-		
+
+		SmartDashboard.putBoolean("side", sidebool);
+		boolside = SmartDashboard.getBoolean("side", sidebool);
 		CommandScheduler.getInstance().run();
 	}
 
@@ -135,33 +148,74 @@ public class Robot extends TimedRobot {
 		}
 		timer.reset();
 		timer.start();
+  
+		currRotation = 0;
+		currSpeedX = 0;
+		currSpeedY = 0;
+		boolside = true;
 		
 	}
-
+ 
 	/** This function is called periodically during autonomous. */
 	@Override
 	public void autonomousPeriodic() {
-		// if (timer.get() >= 0 && timer.get() <= 2){ // Primes for 1 second
-		// 	launcherMotor2.set(ControlMode.PercentOutput, 1);
-		// 	if (timer.get() >= 1){ //Fires
-		// 		launcherMotor.set(ControlMode.PercentOutput, 1);
-		// 	}
-		// 	}
-		// if (autoSet == 0){ // In front of the subwoofer(parellel to speaker)
-		// 	if (timer.get() >= 1.5 && timer.get() <= 4.5){ // Moves back unkown ft
-		// 		currSpeedY = 0.5;
-		// 		currSpeedX = 0.5;
-		// 	}
-		// 	}
-		// if (autoSet == 1){
-		// }
-			currRotation = 0;
-			currSpeedX = 0;
-			currSpeedY = 0;
-			launcherMotor2.set(ControlMode.PercentOutput,0);
-		
+		currRotation = 0;
+		currSpeedX = 0;
+		currSpeedY = 0;
+		System.out.println(autoChooser.getSelected());
+
+		if (boolside) { //this accesses the side indicated by the 
+			//shuffleboard & Indicates which side red/blue starting on
+			side = -1;
+		} else {
+			side = 1; 
+		}
+		if (timer.get() >= 0 && timer.get() <= 2) { // Primes for 1 second
+			launcherMotor2.set(ControlMode.PercentOutput, 1);
+			if (timer.get() >= 1) { // Fires
+				launcherMotor.set(ControlMode.PercentOutput, 1);
+			}
+		}
+
+		if (timer.get() >= 2.5 && timer.get() <= 5.5) {
+			switch (autoChooser.getSelected()) { // Controls which auto schedule to use
+				case 0: { // In front of the subwoofer(parellel to speaker)
+					currSpeedY = 0.5;
+					currSpeedX = 0.5 * side;
+				}
+					break;
+				case 1: { // Left side of subwoofer(robot facing speaker)
+					if (timer.get() >= 2.5 && timer.get() <= 3) {
+						currSpeedY = .5;
+					}
+					if (timer.get() >= 3.1 && timer.get() <= 3.36) {
+						currRotation = .5 * side;
+						currSpeedY = .2;
+					}
+					if (timer.get() >= 3.4) {
+						currSpeedY = .5;
+					}
+				}
+					break;
+				case 2: { // Right side of subwoofer
+					if (timer.get() >= 2.5 && timer.get() <= 3) {
+						currSpeedY = .5;
+					}
+					if (timer.get() >= 3.1 && timer.get() <= 3.36) {
+						currRotation = -.5 * side;
+						currSpeedY = .2;
+					}
+					if (timer.get() >= 3.4) {
+						currSpeedY = .5;
+					}
+				}
+					break;
+			}
+			launcherMotor2.set(ControlMode.PercentOutput, 0);
+		}
 
 		mecanumDrive.driveCartesian(currSpeedX, -currSpeedY, currRotation);
+		SmartDashboard.putBoolean("Red/Blue(T/F)", boolside);
 
 	}
 
@@ -170,9 +224,8 @@ public class Robot extends TimedRobot {
 		currRotation = 0;
 		currSpeedX = 0;
 		currSpeedY = 0;
-		
+
 		SmartDashboard.putBoolean("primed", primed);
-		SmartDashboard.putNumber("lift", lift);
 
 		// This makes sure that the autonomous stops running when
 		// teleop starts running. If you want the autonomous to
@@ -187,79 +240,68 @@ public class Robot extends TimedRobot {
 	@Override
 	public void teleopPeriodic() {
 		if (RobotState.isEnabled()) {
-			/* lowerLeftDrive: launch motor
+			/*
+			 * lowerLeftDrive: launch motor
 			 * 
 			 * 
 			 * 
 			 * 
 			 */
-		 if(controller.getYButton())
-		 {
-			upperLeftDrive.set(ControlMode.PercentOutput,.5);
-		 	return;
-		}
-		 else{
-		 }
-			lowerLeftDrive.set(0);
-			
+			if (controller.getYButton()) {
+				upperLeftDrive.set(ControlMode.PercentOutput, .5);
+				return;
+			}
 			stickX = Math.abs(controller.getLeftX()) < .1 ? 0 : controller.getLeftX();
 			stickY = Math.abs(controller.getLeftY()) < .1 ? 0 : controller.getLeftY();
 			rStickX = Math.abs(controller.getRightX()) < .1 ? 0 : controller.getRightX();
 
-			currRotation = speedControl(currRotation, rStickX);
-			currSpeedX = speedControl(currSpeedX, stickX);
-			currSpeedY = speedControl(currSpeedY, stickY);
+			// currRotation = speedControl(currRotation, rStickX);
+			// currSpeedX = speedControl(currSpeedX, stickX);
+			// currSpeedY = speedControl(currSpeedY, stickY);
+			currRotation = rStickX;
+			currSpeedX = stickX;
+			currSpeedY = stickY;
 
-			if(controller.getRightBumperPressed())
-			{
+			if (controller.getRightBumperPressed()) {
 				primed = !primed;
 			}
 			// logic for launching the note
-			if (controller.getRightTriggerAxis()>.5) {
-				launcherMotor.set(VictorSPXControlMode.PercentOutput,1.0);
-				launcherMotor2.set(VictorSPXControlMode.PercentOutput,1.0);
-				primed= false;
-			}
-			else if(primed){
-				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1);
-			}
-			else if(controller.getAButton()) // Loading through the front
-			{
-				launcherMotor.set(VictorSPXControlMode.PercentOutput,-.5);
-				launcherMotor2.set(VictorSPXControlMode.PercentOutput,-.5);	
-			}
-			else if(controller.getPOV() != -1){ // Mechanism to pull robot on chain
-				if (controller.getPOV() == 0){
-					lift++;
-					robotLiftMotor.set(ControlMode.PercentOutput,.5);
-				}
-				else if (controller.getPOV() == 180){
-					lift--;
-					robotLiftMotor.set(ControlMode.PercentOutput,-0.5);
-				}
-			}
-			else {
+			if (controller.getRightTriggerAxis() > .5 && !primed) {
+				launcherMotor.set(VictorSPXControlMode.PercentOutput, 1.0);
+				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1.0);
 				primed = false;
-				launcherMotor.set(VictorSPXControlMode.PercentOutput,0);
-				launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
-				robotLiftMotor.set(ControlMode.PercentOutput,0);
+			} else if (primed) {
+				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1);
+			} else if (controller.getAButton()) // Loading through the front
+			{
+				launcherMotor.set(VictorSPXControlMode.PercentOutput, -.5);
+				launcherMotor2.set(VictorSPXControlMode.PercentOutput, -.5);
+			} else if (controller.getPOV() != -1) { // Mechanism to pull robot on chain
+				if (controller.getPOV() == 0) {
+					robotLiftMotor.set(ControlMode.PercentOutput, .5);
+				} else if (controller.getPOV() == 180) {
+					robotLiftMotor.set(ControlMode.PercentOutput, -0.5);
+				}
+			} else {
+				primed = false;
+				launcherMotor.set(VictorSPXControlMode.PercentOutput, 0);
+				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 0);
+				robotLiftMotor.set(ControlMode.PercentOutput, 0);
 
 			}
-			
 
-		} 
-		else {
+		} else {
 			// Defaults
 			currSpeedX = 0.0;
 			currSpeedY = 0.0;
 			currRotation = 0.0;
-			launcherMotor.set(VictorSPXControlMode.PercentOutput,0);
-			launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
+			launcherMotor.set(VictorSPXControlMode.PercentOutput, 0);
+			launcherMotor2.set(VictorSPXControlMode.PercentOutput, 0);
 		}
 
 		mecanumDrive.driveCartesian(currSpeedX, -currSpeedY, currRotation);
 		// SmartDashboard.updateValues();
-		SmartDashboard.putBoolean("primed", primed);		
+		SmartDashboard.putBoolean("primed", primed);
 	}
 
 	@Override
