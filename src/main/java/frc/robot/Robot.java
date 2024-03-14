@@ -34,6 +34,7 @@ import org.opencv.imgproc.Imgproc;
 import com.ctre.phoenix.motorcontrol.can.*;
 // import com.ctre.phoenix.signals.*;
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
 
 /*
@@ -63,6 +64,10 @@ public class Robot extends TimedRobot {
 	private boolean sidebool;
 	private boolean boolside; // True Blue, False Red
 
+	private final double primingTime = 1;
+
+	private double rightBumperState = 0;
+
 	private SendableChooser<Integer> autoChooser = new SendableChooser();
 
 	private final Timer timer = new Timer();
@@ -70,7 +75,8 @@ public class Robot extends TimedRobot {
 
 	private RobotContainer robotContainer;
 
-	private boolean primed = false;
+	private boolean priming = false;
+	private boolean fired = false;
 
 	/**
 	 * This function is run when the robot is first started up and should be used
@@ -86,6 +92,11 @@ public class Robot extends TimedRobot {
 		lowerLeftDrive.setInverted(false);
 		upperLeftDrive.setInverted(false);
 		robotLiftMotor.setInverted(true);
+
+		upperLeftDrive.setNeutralMode(NeutralMode.Brake);
+		upperRightDrive.setNeutralMode(NeutralMode.Brake);
+		lowerLeftDrive.setNeutralMode(NeutralMode.Brake);
+		lowerRightDrive.setNeutralMode(NeutralMode.Brake);
 		// Instantiate our RobotContainer. This will perform all our button bindings,
 		// and put our
 		// autonomous chooser on the dashboard.s
@@ -162,7 +173,7 @@ public class Robot extends TimedRobot {
 		currRotation = 0;
 		currSpeedX = 0;
 		currSpeedY = 0;
-		System.out.println(autoChooser.getSelected());
+		//System.out.println(autoChooser.getSelected());
 
 		if (boolside) { //this accesses the side indicated by the 
 			//shuffleboard & Indicates which side red/blue starting on
@@ -224,8 +235,9 @@ public class Robot extends TimedRobot {
 		currRotation = 0;
 		currSpeedX = 0;
 		currSpeedY = 0;
-
-		SmartDashboard.putBoolean("primed", primed);
+		timer.reset();
+		timer.stop();
+		SmartDashboard.putBoolean("primed", timer.get() >= primingTime);
 
 		// This makes sure that the autonomous stops running when
 		// teleop starts running. If you want the autonomous to
@@ -262,32 +274,51 @@ public class Robot extends TimedRobot {
 			currSpeedX = stickX;
 			currSpeedY = stickY;
 
-			if (controller.getRightBumperPressed()) {
-				primed = !primed;
+			if (controller.getRightBumperPressed() && !priming) {
+				timer.reset();
+				timer.start();
+				priming = true;
 			}
-			// logic for launching the note
-			if (controller.getRightTriggerAxis() > .5 && !primed) {
-				launcherMotor.set(VictorSPXControlMode.PercentOutput, 1.0);
-				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1.0);
-				primed = false;
-			} else if (primed) {
-				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1);
-			} else if (controller.getAButton()) // Loading through the front
+ 
+			if (priming) {
+				if (controller.getRightTriggerAxis() > .5 && timer.get()>= primingTime) {
+					launcherMotor.set(VictorSPXControlMode.PercentOutput, 1.0);
+					launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1.0);
+					fired = true;
+
+				}
+				else {
+					launcherMotor2.set(VictorSPXControlMode.PercentOutput, 1);
+				}
+			} 
+			else if (controller.getAButton()) // Loading through the front
 			{
 				launcherMotor.set(VictorSPXControlMode.PercentOutput, -.5);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput, -.5);
-			} else if (controller.getPOV() != -1) { // Mechanism to pull robot on chain
-				if (controller.getPOV() == 0) {
-					robotLiftMotor.set(ControlMode.PercentOutput, .5);
-				} else if (controller.getPOV() == 180) {
-					robotLiftMotor.set(ControlMode.PercentOutput, -0.5);
-				}
-			} else {
-				primed = false;
+			}
+			else {
 				launcherMotor.set(VictorSPXControlMode.PercentOutput, 0);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput, 0);
-				robotLiftMotor.set(ControlMode.PercentOutput, 0);
 
+			} 
+
+			if (controller.getPOV() != -1) { // Mechanism to pull robot on chain
+				if (controller.getPOV() == 0) {
+					robotLiftMotor.set(ControlMode.PercentOutput, .5);
+				} 
+				else if (controller.getPOV() == 180) {
+					robotLiftMotor.set(ControlMode.PercentOutput, -0.5);
+				}
+			}
+			else {
+				robotLiftMotor.set(ControlMode.PercentOutput, 0);
+			}
+
+			if (fired && controller.getRightTriggerAxis() <= 0.5){
+				priming = false;
+				fired = false;
+				timer.reset();
+				timer.stop();
 			}
 
 		} else {
@@ -301,7 +332,7 @@ public class Robot extends TimedRobot {
 
 		mecanumDrive.driveCartesian(currSpeedX, -currSpeedY, currRotation);
 		// SmartDashboard.updateValues();
-		SmartDashboard.putBoolean("primed", primed);
+		SmartDashboard.putBoolean("primed", timer.get()>2);
 	}
 
 	@Override
