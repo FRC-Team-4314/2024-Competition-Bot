@@ -29,7 +29,7 @@ import org.opencv.imgproc.Imgproc;
 
 // import com.ctre.phoenix6.hardware.*;
 // import com.ctre.phoenix6.mechanisms.*;
-import com.ctre.phoenix.motorcontrol.can.VictorSPX;
+import com.ctre.phoenix.motorcontrol.can.*;
 // import com.ctre.phoenix.signals.*;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
@@ -40,14 +40,14 @@ import com.ctre.phoenix.motorcontrol.VictorSPXControlMode;
  * project.
  */
 public class Robot extends TimedRobot {	
-	private final PWMSparkMax upperLeftDrive = new PWMSparkMax(0);
-	private final PWMSparkMax upperRightDrive = new PWMSparkMax(1);
-	private final PWMSparkMax lowerLeftDrive = new PWMSparkMax(2);
-	private final PWMSparkMax lowerRightDrive = new PWMSparkMax(3);
+	private final WPI_VictorSPX upperLeftDrive = new WPI_VictorSPX(4);
+	private final WPI_VictorSPX upperRightDrive = new WPI_VictorSPX(3);
+	private final WPI_VictorSPX lowerLeftDrive = new WPI_VictorSPX(5);
+	private final WPI_VictorSPX lowerRightDrive = new WPI_VictorSPX(1);
 	
-	private final VictorSPX launcherMotor = new VictorSPX(0);
-	private final VictorSPX launcherMotor2 = new VictorSPX(1);
-	private final PWMSparkMax robotLiftMotor = new PWMSparkMax(4);
+	private final WPI_VictorSPX launcherMotor = new WPI_VictorSPX(2);
+	private final WPI_VictorSPX launcherMotor2 = new WPI_VictorSPX(0);
+	private final WPI_VictorSPX robotLiftMotor = new WPI_VictorSPX(6);
 
 	private final MecanumDrive mecanumDrive = new MecanumDrive(upperLeftDrive, lowerLeftDrive, upperRightDrive,
 			lowerRightDrive);
@@ -56,7 +56,7 @@ public class Robot extends TimedRobot {
 
 	private double currSpeedX = 0, currSpeedY = 0, currRotation = 0;
 	private double stickX = 0, stickY = 0, rStickX = 0;
-
+	private int autoSet = 0;
 	private final Timer timer = new Timer();
 	private Command autonomousCommand;
 
@@ -64,7 +64,6 @@ public class Robot extends TimedRobot {
 
 	
 	private boolean primed = false;
-	private double lift = 0.0;
 	/**
 	 * This function is run when the robot is first started up and should be used
 	 * for any
@@ -78,17 +77,13 @@ public class Robot extends TimedRobot {
 		lowerRightDrive.setInverted(true);
 		lowerLeftDrive.setInverted(false);
 		upperLeftDrive.setInverted(false);
+		robotLiftMotor.setInverted(true);
 		// Instantiate our RobotContainer. This will perform all our button bindings,
 		// and put our
 		// autonomous chooser on the dashboard.s
 
 		
 		robotContainer = new RobotContainer();
-
-		upperLeftDrive.setSafetyEnabled(false);
-		lowerLeftDrive.setSafetyEnabled(false);
-		upperRightDrive.setSafetyEnabled(false);
-		lowerRightDrive.setSafetyEnabled(false);
 
 		CameraServer.startAutomaticCapture();
 		// CvSink frontSink = new CvSink("frontSink");
@@ -146,26 +141,27 @@ public class Robot extends TimedRobot {
 	/** This function is called periodically during autonomous. */
 	@Override
 	public void autonomousPeriodic() {
-		if (timer.get() >= 0 && timer.get() <= 2){ // Primes for 1 second
-			launcherMotor2.set(ControlMode.PercentOutput, 1);
-			if (timer.get() >= 1){ //Fires
-				launcherMotor.set(ControlMode.PercentOutput, 1);
-			}
-		}
-		else if (timer.get() >= 1.5 && timer.get() <= 2.5){ // Moves back unkown ft
-			currSpeedY = 0.5;
-		}
-		else if (timer.get() >= 3 && timer.get() <= 4){
-			currRotation = 0.5;
-		}
-		else{
+		// if (timer.get() >= 0 && timer.get() <= 2){ // Primes for 1 second
+		// 	launcherMotor2.set(ControlMode.PercentOutput, 1);
+		// 	if (timer.get() >= 1){ //Fires
+		// 		launcherMotor.set(ControlMode.PercentOutput, 1);
+		// 	}
+		// 	}
+		// if (autoSet == 0){ // In front of the subwoofer(parellel to speaker)
+		// 	if (timer.get() >= 1.5 && timer.get() <= 4.5){ // Moves back unkown ft
+		// 		currSpeedY = 0.5;
+		// 		currSpeedX = 0.5;
+		// 	}
+		// 	}
+		// if (autoSet == 1){
+		// }
 			currRotation = 0;
 			currSpeedX = 0;
 			currSpeedY = 0;
 			launcherMotor2.set(ControlMode.PercentOutput,0);
-		}
+		
 
-		mecanumDrive.driveCartesian(-currSpeedX, currSpeedY, currRotation);
+		mecanumDrive.driveCartesian(currSpeedX, -currSpeedY, currRotation);
 
 	}
 
@@ -191,14 +187,21 @@ public class Robot extends TimedRobot {
 	@Override
 	public void teleopPeriodic() {
 		if (RobotState.isEnabled()) {
-
-		// if(controller.getYButton())
-		// {
-		// 	return;
-		// }
-		// else{
-		// 	lowerLeftDrive.set(0);
-		// }
+			/* lowerLeftDrive: launch motor
+			 * 
+			 * 
+			 * 
+			 * 
+			 */
+		 if(controller.getYButton())
+		 {
+			upperLeftDrive.set(ControlMode.PercentOutput,.5);
+		 	return;
+		}
+		 else{
+		 }
+			lowerLeftDrive.set(0);
+			
 			stickX = Math.abs(controller.getLeftX()) < .1 ? 0 : controller.getLeftX();
 			stickY = Math.abs(controller.getLeftY()) < .1 ? 0 : controller.getLeftY();
 			rStickX = Math.abs(controller.getRightX()) < .1 ? 0 : controller.getRightX();
@@ -225,20 +228,22 @@ public class Robot extends TimedRobot {
 				launcherMotor.set(VictorSPXControlMode.PercentOutput,-.5);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput,-.5);	
 			}
-			else if(controller.getPOV() != -1 && lift >= 0){ // Mechanism to pull robot on chain
+			else if(controller.getPOV() != -1){ // Mechanism to pull robot on chain
 				if (controller.getPOV() == 0){
-					lift += 1;
-					robotLiftMotor.set(.5);
+					lift++;
+					robotLiftMotor.set(ControlMode.PercentOutput,.5);
 				}
 				else if (controller.getPOV() == 180){
-					lift -= 1;
-					robotLiftMotor.set(-0.5);;
+					lift--;
+					robotLiftMotor.set(ControlMode.PercentOutput,-0.5);
 				}
 			}
 			else {
 				primed = false;
 				launcherMotor.set(VictorSPXControlMode.PercentOutput,0);
 				launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
+				robotLiftMotor.set(ControlMode.PercentOutput,0);
+
 			}
 			
 
@@ -252,11 +257,9 @@ public class Robot extends TimedRobot {
 			launcherMotor2.set(VictorSPXControlMode.PercentOutput,0);
 		}
 
-		mecanumDrive.driveCartesian(-currSpeedX, currSpeedY, currRotation);
+		mecanumDrive.driveCartesian(currSpeedX, -currSpeedY, currRotation);
 		// SmartDashboard.updateValues();
-		SmartDashboard.putBoolean("primed", primed);
-		SmartDashboard.putNumber("lift", lift);
-		
+		SmartDashboard.putBoolean("primed", primed);		
 	}
 
 	@Override
