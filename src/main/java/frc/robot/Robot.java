@@ -62,9 +62,12 @@ public class Robot extends TimedRobot {
 	private double stickX = 0, stickY = 0, rStickX = 0;
 	private int side = 1; // 1 or -1
 	private boolean sidebool;
-	private boolean boolside; // True Blue, False Red
+	private boolean aSide; // True Blue, False Red
 
 	private final double primingTime = 1;
+	private final int SpeakerCenter = 0;
+	private final int AmpSide = 1;
+	private final int SourceSide = 2;
 
 	private double rightBumperState = 0;
 
@@ -77,6 +80,7 @@ public class Robot extends TimedRobot {
 
 	private boolean priming = false;
 	private boolean fired = false;
+	private int autoChoice = SourceSide; //Default to source side
 
 	/**
 	 * This function is run when the robot is first started up and should be used
@@ -101,9 +105,9 @@ public class Robot extends TimedRobot {
 		// and put our
 		// autonomous chooser on the dashboard.s
 
-		autoChooser.setDefaultOption("subwoofer center", 0);
-		autoChooser.addOption("subwoofer left", 1);
-		autoChooser.addOption("subwoofer right", 2);
+		autoChooser.setDefaultOption("Speaker center", SpeakerCenter);
+		autoChooser.addOption("Amp side", AmpSide);
+		autoChooser.addOption("Source side", SourceSide);
 		SmartDashboard.putData("Choose Auto",autoChooser);
 		robotContainer = new RobotContainer();
 
@@ -133,7 +137,7 @@ public class Robot extends TimedRobot {
 		// block in order for anything in the Command-based framework to work.
 
 		SmartDashboard.putBoolean("side", sidebool);
-		boolside = SmartDashboard.getBoolean("side", sidebool);
+		aSide = SmartDashboard.getBoolean("side", sidebool);
 		CommandScheduler.getInstance().run();
 	}
 
@@ -163,8 +167,14 @@ public class Robot extends TimedRobot {
 		currRotation = 0;
 		currSpeedX = 0;
 		currSpeedY = 0;
-		boolside = true;
+		aSide = false;
 		
+		try {
+			autoChoice = autoChooser.getSelected();
+		}
+		catch(Exception e) {
+
+		}
 	}
  
 	/** This function is called periodically during autonomous. */
@@ -173,14 +183,9 @@ public class Robot extends TimedRobot {
 		currRotation = 0;
 		currSpeedX = 0;
 		currSpeedY = 0;
-		//System.out.println(autoChooser.getSelected());
+		side =  (aSide)? 1 : -1; //this accesses the side indicated by the 
+		//shuffleboard & Indicates which side, red is True, blue is False
 
-		if (boolside) { //this accesses the side indicated by the 
-			//shuffleboard & Indicates which side red/blue starting on
-			side = -1;
-		} else {
-			side = 1; 
-		}
 		if (timer.get() >= 0 && timer.get() <= 2) { // Primes for 1 second
 			launcherMotor2.set(ControlMode.PercentOutput, 1);
 			if (timer.get() >= 1) { // Fires
@@ -188,36 +193,38 @@ public class Robot extends TimedRobot {
 			}
 		}
 
-		if (timer.get() >= 2.5 && timer.get() <= 5.5) {
-			switch (autoChooser.getSelected()) { // Controls which auto schedule to use
+		if (timer.get() >= 2.5 && timer.get() <= 6.5) {
+			switch (autoChoice) { // Controls which auto schedule to use
 				case 0: { // In front of the subwoofer(parellel to speaker)
-					currSpeedY = 0.5;
-					currSpeedX = 0.5 * side;
-				}
+					currSpeedX = 0.05 * side; // move right
+					currSpeedY = -0.5; // move back
+					}
 					break;
-				case 1: { // Left side of subwoofer(robot facing speaker)
+				case 1: { // Left side looking from driverstation
+																	 
 					if (timer.get() >= 2.5 && timer.get() <= 3) {
-						currSpeedY = .5;
+						currSpeedY = .5; //  Move back
 					}
 					if (timer.get() >= 3.1 && timer.get() <= 3.36) {
-						currRotation = .5 * side;
-						currSpeedY = .2;
+						currRotation = -.5 * side; // turn counter?clockwise
+						currSpeedY = -.2; // Slow move back
 					}
 					if (timer.get() >= 3.4) {
-						currSpeedY = .5;
+						currSpeedY= .5; // move back
 					}
 				}
 					break;
-				case 2: { // Right side of subwoofer
-					if (timer.get() >= 2.5 && timer.get() <= 3) {
-						currSpeedY = .5;
+				case 2: { // Right side looking from diverstation
+					
+					if (timer.get() >= 2.5 && timer.get() <= 4.5) {
+						currSpeedY = -.5; // Move Back
 					}
-					if (timer.get() >= 3.1 && timer.get() <= 3.36) {
-						currRotation = -.5 * side;
-						currSpeedY = .2;
+					if (timer.get() >= 4.7 && timer.get() <= 5.0) {
+						currRotation = .5 * side; // Turn counterclockwise
+						currSpeedX = .2 * side; // Move left
 					}
-					if (timer.get() >= 3.4) {
-						currSpeedY = .5;
+					if (timer.get() > 5.0) {
+						currSpeedY = -.5; // Move bacvk
 					}
 				}
 					break;
@@ -226,7 +233,7 @@ public class Robot extends TimedRobot {
 		}
 
 		mecanumDrive.driveCartesian(currSpeedX, -currSpeedY, currRotation);
-		SmartDashboard.putBoolean("Red/Blue(T/F)", boolside);
+		SmartDashboard.putBoolean("Red/Blue", aSide);
 
 	}
 
@@ -270,9 +277,9 @@ public class Robot extends TimedRobot {
 			// currRotation = speedControl(currRotation, rStickX);
 			// currSpeedX = speedControl(currSpeedX, stickX);
 			// currSpeedY = speedControl(currSpeedY, stickY);
-			currRotation = rStickX;
-			currSpeedX = stickX;
-			currSpeedY = stickY;
+			currRotation = speedControl(currRotation, rStickX);
+			currSpeedX = speedControl(currSpeedX, stickX);
+			currSpeedY = speedControl(currSpeedY, stickY);
 
 			if (controller.getRightBumperPressed() && !priming) {
 				timer.reset();
@@ -320,7 +327,7 @@ public class Robot extends TimedRobot {
 				timer.reset();
 				timer.stop();
 			}
-
+ 
 		} else {
 			// Defaults
 			currSpeedX = 0.0;
